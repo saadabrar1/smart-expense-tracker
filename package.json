@@ -1,0 +1,8 @@
+{
+  "name": "smart-expense-tracker",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "test": "npm test --workspaces --if-present"
+  }
+}
