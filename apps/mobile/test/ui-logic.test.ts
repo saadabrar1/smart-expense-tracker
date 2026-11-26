@@ -54,3 +54,22 @@ test('keypad: digits, one decimal point, two decimals, 9-digit cap, delete', () 
   assert.equal(type(['4', '2', 'del']), '4');
   assert.equal(type(['del']), '');
 });
+
+test('merge on the phone: detailed + short bank e-mails for one own-wallet transfer → one "Transfers" record', async () => {
+  const { parseMessage, categorize } = await import('@smart-expense/engine');
+  const { mergeTransactions } = await import('../src/transactions.ts');
+  const parse = (body: string) => {
+    const r = parseMessage({ sender: 'ibanking@bankalfalah.com', body, receivedAt: new Date('2026-11-25T09:20:00Z'), source: 'email' });
+    assert.equal(r.kind, 'transaction');
+    return categorize((r as { kind: 'transaction'; tx: import('@smart-expense/engine').ParsedTransaction }).tx);
+  };
+  // Anonymised copies of real Bank Alfalah formats (same Ref = same payment).
+  const detailed = parse('Transaction Successful Wednesday, November 25, 2026 | 2:14 PM Ref# FT26329TEST0001 Account Title AHMED KHAN Account/IBAN *****4455 Purpose of Payment Others Transaction Type Debit Tax/Charges PKR 0.0000/- Amount PKR 8,500.00/- call/Whatsapp: 021111225111');
+  const short = parse('Dear AHMED KHAN PKR 8,500.00 sent to AHMAD KHAN -RAAST ID **03**-***2233 on 25-Nov-2026 14:14 Ref FT26329TEST0001 via RAAST');
+  assert.equal(detailed.category, 'Other');
+  const stored = mergeTransactions(mergeTransactions([], [detailed]), [short]);
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].isTransfer, true);
+  assert.equal(stored[0].category, 'Transfers');
+  assert.equal(stored[0].accountHint, '4455');
+});

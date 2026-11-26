@@ -1,5 +1,5 @@
 import {
-  parseMessage, categorize, dedupeKey,
+  parseMessage, categorize, dedupeKey, BUILT_IN_TEMPLATES,
   type CategorizedTransaction, type Template, type UserRules,
 } from '@smart-expense/engine';
 import type { GmailClient, GmailMessage } from './api.ts';
@@ -121,7 +121,7 @@ export async function syncGmail(opts: SyncOptions): Promise<SyncResult> {
   for (const m of messages) {
     seen.add(m.id);
     const raw = messageToRaw(m);
-    const r = parseMessage(raw, opts.templates ?? []);
+    const r = parseMessage(raw, opts.templates ? [...opts.templates, ...BUILT_IN_TEMPLATES] : undefined);
     if (r.kind === 'transaction') {
       const key = dedupeKey(r.tx);
       if (keys.has(key)) continue; // same alert sent twice (e.g. bank resend)

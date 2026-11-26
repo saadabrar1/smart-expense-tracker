@@ -42,10 +42,12 @@ test('fromAddress extracts and lowercases the email', () => {
   assert.equal(fromAddress({ headers: [{ name: 'from', value: 'noreply@wallet.example' }] }), 'noreply@wallet.example');
 });
 
-test('query: keyword filter by default, sender filter when known, incremental "after:"', () => {
+test('query: known senders OR alert keywords, keyword-only when no senders, incremental "after:"', () => {
+  const q0 = buildAlertQuery({ newerThanDays: 90, senders: [] });
+  assert.match(q0, /^newer_than:90d \{debited credited /);
+  assert.match(q0, /-category:promotions/);
   const q1 = buildAlertQuery({ newerThanDays: 90 });
-  assert.match(q1, /^newer_than:90d \{debited credited /);
-  assert.match(q1, /-category:promotions/);
+  assert.match(q1, /^newer_than:90d \{from:\(e\.statement@telenorbank\.pk OR ibanking@bankalfalah\.com\) \{debited /);
   const q2 = buildAlertQuery({ afterEpochSeconds: 1764150000.7, senders: ['a@x.example', 'b@y.example'] });
   assert.match(q2, /^after:1764150000 \{from:\(a@x\.example OR b@y\.example\) \{/);
   assert.doesNotMatch(q2, /newer_than/);

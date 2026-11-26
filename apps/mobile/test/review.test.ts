@@ -5,14 +5,14 @@ import type { UnparsedAlert } from '../src/gmail/sync.ts';
 
 test('redact: removes personal identifiers, keeps amounts, dates and last 4 digits', () => {
   const input = [
-    'Dear Muhammad Saad Abrar, Rs 150000 received in A/C 0123456789012 on 26-11-2026.',
+    'Dear Muhammad Ali Raza, Rs 150000 received in A/C 0123456789012 on 26-11-2026.',
     'IBAN PK36SCBL0000001123456702, CNIC 35202-1234567-1, call 0300-1234567 or +92 321 7654321.',
     'Card 4123 4567 8901 2345. Ref 998877665544. Mail help@bank.example. Fee PKR 25.',
   ].join(' ');
   const out = redact(input);
 
   assert.match(out, /Dear \[name\],/);
-  assert.doesNotMatch(out, /Saad|Abrar|Muhammad/);
+  assert.doesNotMatch(out, /Raza|Muhammad/);
   assert.match(out, /Rs 150000 received/, 'amount after currency is kept');
   assert.match(out, /A\/C ••••9012/);
   assert.match(out, /on 26-11-2026/, 'dates are kept');

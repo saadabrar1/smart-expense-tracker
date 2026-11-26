@@ -1,4 +1,4 @@
-import { parseMessage, categorize, type CategorizedTransaction, type Template, type UserRules } from '@smart-expense/engine';
+import { parseMessage, categorize, BUILT_IN_TEMPLATES, type CategorizedTransaction, type Template, type UserRules } from '@smart-expense/engine';
 import { isSameTransaction } from '../transactions.ts';
 
 /**
@@ -69,7 +69,7 @@ export function processCaptured(n: CapturedNotification, opts: ProcessOptions = 
   }
   if (n.packageName === GMAIL_APP && opts.gmailConnected) return { kind: 'gmail-trigger', id: n.id };
   const raw = toRawMessage(n);
-  const r = parseMessage(raw, opts.templates ?? []);
+  const r = parseMessage(raw, opts.templates ? [...opts.templates, ...BUILT_IN_TEMPLATES] : undefined);
   if (r.kind === 'transaction') return { kind: 'transaction', id: n.id, tx: categorize(r.tx, opts.userRules) };
   if (r.reason === 'failed') {
     return {

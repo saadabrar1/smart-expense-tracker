@@ -21,6 +21,10 @@ export interface ParsedTransaction {
   accountHint: string | null;
   /** True for movements between the user's own accounts / wallet top-ups — not real spending */
   isTransfer: boolean;
+  /** Bank reference / transaction id, when the alert has one — exact key for duplicates */
+  reference?: string | null;
+  /** Last digits of the receiving account/wallet, when shown — detects transfers to own accounts */
+  counterpartyHint?: string | null;
   occurredAt: Date;
   sender: string;
   source: Source;
@@ -34,13 +38,27 @@ export type ParseResult =
   | { kind: 'transaction'; tx: ParsedTransaction }
   | { kind: 'ignored'; reason: 'otp' | 'promo' | 'not-financial' | 'failed' };
 
+/**
+ * A parser for one bank/wallet alert format, built from real collected samples.
+ * At least one of `sender` / `signature` is required, so a template never fires on unrelated text.
+ *
+ * Named groups in `pattern`:
+ *  - amount (required)  - merchant (counterparty)  - balance  - account (last digits)
+ *  - date   (parsed as Pakistan time; falls back to when the alert arrived)
+ *  - dir    ("Debit"/"Credit" text; overrides `direction`)
+ *  - self   (the user's own name; if it matches merchant, the movement is a transfer to self)
+ *  - ref    (bank reference / transaction id)
+ *  - to     (last 4 digits of the receiving account / wallet / RAAST id)
+ */
 export interface Template {
   id: string;
-  /** Matches the sender id (case-insensitive) */
-  sender: RegExp;
+  /** Matches the sender id / app package / email address */
+  sender?: RegExp;
+  /** Matches the message body, for formats whose sender we can't pin down */
+  signature?: RegExp;
   pattern: RegExp;
+  /** Default direction when the pattern has no `dir` group */
   direction: Direction;
-  /** Named groups expected in pattern: amount (required), merchant, balance, account */
   isTransfer?: boolean;
 }
 

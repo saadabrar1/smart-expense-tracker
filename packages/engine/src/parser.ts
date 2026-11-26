@@ -1,4 +1,7 @@
 import type { ParseResult, ParsedTransaction, RawMessage, Template, Direction } from './types.ts';
+import { parsePkDate } from './dates.ts';
+import { isSameName } from './names.ts';
+import { BUILT_IN_TEMPLATES } from './templates.ts';
 
 /**
  * Layer 1 — extraction.
@@ -19,9 +22,11 @@ const amountReGlobal = new RegExp(AMOUNT, 'gi');
 const OTP_RE = /\b(otp|one[-\s]?time\s+pass(word|code)?|verification code|do not share|tpin)\b/i;
 const PROMO_RE = /\b(offer|discount|cashback offer|win|lucky draw|apply now|click here|sale)\b/i;
 
-const DEBIT_RE = /\b(debited|spent|paid|purchase|withdrawn|withdrawal|sent|transferred to|deducted|charged|payment of)\b/i;
+const DEBIT_RE = /\b(debited|spent|paid|purchase|withdrawn|withdrawal|sent|transferred to|deducted|charged|payment of|money transfer of|transaction type:?\s+debit)\b/i;
 const CREDIT_RE = /\b(credited|received|deposited|refund(ed)?|salary|transferred from|cash ?in)\b/i;
-const TRANSFER_RE = /\b(own account|self transfer|to your (wallet|account)|wallet top[-\s]?up|top[-\s]?up)\b/i;
+/** A template's transaction-type field that means money came in. */
+const CREDIT_TYPE_RE = /\b(receiv\w*|cash\s?in|credit\w*|deposit\w*|refund\w*|incoming)\b/i;
+const TRANSFER_RE =/\b(own account|self transfer|to your (wallet|account)|wallet top[-\s]?up|top[-\s]?up)\b/i;
 
 const BALANCE_RE = new RegExp(String.raw`(?:avl\.?|available|avail\.?|current|new|remaining)?\s*bal(?:ance)?\.?\s*(?:is|:)?\s*` + AMOUNT, 'i');
 const ACCOUNT_RE = /(?:a\/c|acct?|account|card)\s*(?:no\.?|#)?\s*(?:ending\s*(?:with|in)?\s*)?[x*]*\s*([0-9]{3,4})\b/i;
@@ -39,19 +44,29 @@ function cleanMerchant(m: string | undefined): string | null {
 }
 
 export function parseWithTemplate(msg: RawMessage, t: Template): ParsedTransaction | null {
-  if (!t.sender.test(msg.sender)) return null;
+  if (!t.sender && !t.signature) return null;
+  if (t.sender && !t.sender.test(msg.sender)) return null;
+  if (t.signature && !t.signature.test(msg.body)) return null;
   const m = t.pattern.exec(msg.body);
   if (!m?.groups?.amount) return null;
   const g = m.groups;
+  // Counterparty name, else the transaction type ("Mobile Package") names it.
+  const merchant = cleanMerchant(g.merchant) ?? cleanMerchant(g.type);
+  const toSelf = !!(g.self && g.merchant && isSameName(g.self, g.merchant));
+  const direction: Direction = g.dir
+    ? (/credit/i.test(g.dir) ? 'credit' : 'debit')
+    : g.type && CREDIT_TYPE_RE.test(g.type) ? 'credit' : t.direction;
   return {
     amount: toNumber(g.amount),
     currency: 'PKR',
-    direction: t.direction,
-    merchant: cleanMerchant(g.merchant),
+    direction,
+    merchant,
     balance: g.balance ? toNumber(g.balance) : null,
     accountHint: g.account ?? null,
-    isTransfer: t.isTransfer ?? TRANSFER_RE.test(msg.body),
-    occurredAt: msg.receivedAt,
+    isTransfer: t.isTransfer ?? (toSelf || TRANSFER_RE.test(msg.body)),
+    reference: g.ref ?? null,
+    counterpartyHint: g.to ?? null,
+    occurredAt: (g.date && parsePkDate(g.date)) || msg.receivedAt,
     sender: msg.sender,
     source: msg.source,
     parsedBy: t.id,
@@ -100,16 +115,19 @@ export function parseHeuristic(msg: RawMessage): ParsedTransaction | null {
   };
 }
 
-export function parseMessage(msg: RawMessage, templates: Template[] = []): ParseResult {
+/** `templates` defaults to the built-in real-sample templates; pass extra ones first to override. */
+export function parseMessage(msg: RawMessage, templates: Template[] = BUILT_IN_TEMPLATES): ParseResult {
   if (OTP_RE.test(msg.body)) return { kind: 'ignored', reason: 'otp' };
   if (!amountRe.test(msg.body)) return { kind: 'ignored', reason: 'not-financial' };
-  if (PROMO_RE.test(msg.body) && !/\b(debited|credited)\b/i.test(msg.body)) {
-    return { kind: 'ignored', reason: 'promo' };
-  }
 
+  // Known formats first: real alerts often carry marketing footers ("exciting offers…").
   for (const t of templates) {
     const tx = parseWithTemplate(msg, t);
     if (tx) return { kind: 'transaction', tx };
+  }
+
+  if (PROMO_RE.test(msg.body) && !/\b(debited|credited)\b/i.test(msg.body)) {
+    return { kind: 'ignored', reason: 'promo' };
   }
 
   const tx = parseHeuristic(msg);

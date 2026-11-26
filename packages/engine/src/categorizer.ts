@@ -36,6 +36,7 @@ const MERCHANTS: Record<string, Category> = {
 
 const KEYWORDS: [RegExp, Category][] = [
   [/\b(atm|cash withdrawal|withdrawn)\b/i, 'Cash Withdrawal'],
+  [/\b(mobile package|mobile load|easyload|recharge|bundle|top ?up)\b/i, 'Mobile & Internet'],
   [/\b(restaurant|cafe|bakery|biryani|tikka|karahi|burger|pizza)\b/i, 'Food & Dining'],
   [/\b(mart|store|grocer|super ?market|kiryana)\b/i, 'Groceries'],
   [/\b(garments?|cloth|tailor|boutique|apparel|shoes|footwear)\b/i, 'Clothing'],

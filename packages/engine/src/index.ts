@@ -3,3 +3,6 @@ export * from './parser.ts';
 export * from './categorizer.ts';
 export * from './forecast.ts';
 export * from './dedupe.ts';
+export * from './dates.ts';
+export * from './names.ts';
+export * from './templates.ts';

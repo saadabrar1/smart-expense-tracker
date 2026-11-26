@@ -1,15 +1,18 @@
 /**
  * Builds the Gmail search query so only bank/wallet alerts are ever downloaded.
  *
- * KNOWN_SENDERS is intentionally empty: real alert addresses must come from collected
- * samples (Phase 0, gate G4). Until then the keyword query does the filtering.
+ * KNOWN_SENDERS holds only addresses confirmed from real collected alerts; the keyword
+ * clause catches banks we haven't confirmed yet.
  */
 
-/** Fill from real alert emails, e.g. "alerts@<bank-domain>". Never guess. */
-export const KNOWN_SENDERS: string[] = [];
+/** Confirmed from real alert e-mails. Never guess an address. */
+export const KNOWN_SENDERS: string[] = [
+  'e.statement@telenorbank.pk', // Easypaisa
+  'ibanking@bankalfalah.com',   // Bank Alfalah
+];
 
 /** Gmail phrases that show up in transaction alerts. */
-const ALERT_TERMS = ['debited', 'credited', '"transaction alert"', '"PKR"', '"Rs."', '"funds transfer"', '"payment received"'];
+const ALERT_TERMS = ['debited', 'credited', '"transaction alert"', '"transaction successful"', '"PKR"', '"Rs."', '"funds transfer"', '"payment received"'];
 
 export interface QueryOptions {
   /** Look-back window for the first import */
