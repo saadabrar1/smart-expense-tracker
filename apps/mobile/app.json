@@ -33,6 +33,17 @@
       "expo-background-task",
       "expo-router"
     ],
-    "scheme": "smartexpense"
+    "scheme": "smartexpense",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "d8c9a906-a550-4b67-bb0c-fa65b96c9924"
+      }
+    },
+    "owner": "saaad1122"
   }
 }
