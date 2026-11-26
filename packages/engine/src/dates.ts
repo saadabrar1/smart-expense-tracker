@@ -19,6 +19,7 @@ function pkt(y: number, m: number, d: number, h: number, min: number, s: number)
  * Supported:
  *  - "26-Nov-2026 14:11:05" / "26-Nov-2026 14:11"   (Easypaisa)
  *  - "November 25, 2026 | 2:14 PM" (optionally after a weekday) (Bank Alfalah)
+ *  - "18 Sep 2026, 08:58 PM"                       (NayaPay-style)
  *  - "26/11/2026 14:11" (day first)
  */
 export function parsePkDate(text: string): Date | null {
@@ -30,6 +31,14 @@ export function parsePkDate(text: string): Date | null {
     let h = +m[4] % 12;
     if (m[6].toUpperCase() === 'PM') h += 12;
     return pkt(+m[3], monthIndex(m[1]), +m[2], h, +m[5], 0);
+  }
+
+  // "18 Sep 2026, 08:58 PM" (NayaPay-style) — also without AM/PM as 24-hour
+  m = /(\d{1,2})\s+([A-Za-z]{3,9}),?\s+(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]M)?/i.exec(text);
+  if (m && monthIndex(m[2]) >= 0) {
+    let h = +m[4];
+    if (m[7]) h = (h % 12) + (m[7].toUpperCase() === 'PM' ? 12 : 0);
+    return pkt(+m[3], monthIndex(m[2]), +m[1], h, +m[5], +(m[6] ?? 0));
   }
 
   m = /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(text);

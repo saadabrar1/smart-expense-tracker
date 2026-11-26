@@ -6,3 +6,4 @@ export * from './dedupe.ts';
 export * from './dates.ts';
 export * from './names.ts';
 export * from './templates.ts';
+export * from './labelled.ts';

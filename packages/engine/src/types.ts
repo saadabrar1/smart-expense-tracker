@@ -25,6 +25,8 @@ export interface ParsedTransaction {
   reference?: string | null;
   /** Last digits of the receiving account/wallet, when shown — detects transfers to own accounts */
   counterpartyHint?: string | null;
+  /** The bank's own merchant category text, e.g. "Grocery Stores and Supermarkets" */
+  bankCategory?: string | null;
   occurredAt: Date;
   sender: string;
   source: Source;
@@ -64,5 +66,5 @@ export interface Template {
 
 export interface CategorizedTransaction extends ParsedTransaction {
   category: string;
-  categorizedBy: 'user-rule' | 'dictionary' | 'keyword' | 'fallback';
+  categorizedBy: 'user-rule' | 'dictionary' | 'bank' | 'keyword' | 'fallback';
 }

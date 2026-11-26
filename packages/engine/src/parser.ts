@@ -1,6 +1,7 @@
 import type { ParseResult, ParsedTransaction, RawMessage, Template, Direction } from './types.ts';
 import { parsePkDate } from './dates.ts';
 import { isSameName } from './names.ts';
+import { parseLabelled } from './labelled.ts';
 import { BUILT_IN_TEMPLATES } from './templates.ts';
 
 /**
@@ -125,6 +126,10 @@ export function parseMessage(msg: RawMessage, templates: Template[] = BUILT_IN_T
     const tx = parseWithTemplate(msg, t);
     if (tx) return { kind: 'transaction', tx };
   }
+
+  // Any bank's table-style alert ("Total Amount … Merchant Details …"), no template needed.
+  const labelled = parseLabelled(msg);
+  if (labelled) return { kind: 'transaction', tx: labelled };
 
   if (PROMO_RE.test(msg.body) && !/\b(debited|credited)\b/i.test(msg.body)) {
     return { kind: 'ignored', reason: 'promo' };

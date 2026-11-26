@@ -65,10 +65,33 @@ export function categorize(tx: ParsedTransaction, userRules: UserRules = new Map
       if (merchant.includes(key)) return { ...tx, category: cat, categorizedBy: 'dictionary' };
     }
   }
+  // The bank's own merchant category (card networks' MCC descriptions) beats guessing from the name.
+  const fromBank = tx.bankCategory ? categoryFromBank(tx.bankCategory) : null;
+  if (fromBank) return { ...tx, category: fromBank, categorizedBy: 'bank' };
   for (const [re, cat] of KEYWORDS) {
     if (re.test(merchant)) return { ...tx, category: cat, categorizedBy: 'keyword' };
   }
   return { ...tx, category: 'Other', categorizedBy: 'fallback' };
+}
+
+/** Bank / card-network merchant category text (MCC descriptions) → our category. */
+const BANK_CATEGORY: [RegExp, Category][] = [
+  [/grocer|supermarket|convenience|food store|bakeries/i, 'Groceries'],
+  [/restaurant|eating|fast food|caterer|bars?\b|cafe|food deliver/i, 'Food & Dining'],
+  [/fuel|petrol|service station|gas station|automated fuel/i, 'Fuel'],
+  [/clothing|apparel|shoe|fashion|tailor|boutique/i, 'Clothing'],
+  [/telecom|mobile|cellular|internet|cable/i, 'Mobile & Internet'],
+  [/utilit|electric|gas supply|water/i, 'Bills & Utilities'],
+  [/pharmac|drug|medical|hospital|doctor|dental|health|optic/i, 'Health'],
+  [/school|college|universit|education/i, 'Education'],
+  [/taxi|ride|transport|airline|bus|railway|parking|toll/i, 'Transport'],
+  [/cinema|movie|entertainment|recreation|sport|game|stream/i, 'Entertainment'],
+  [/department|retail|e-?commerce|online|electronics|merchandise|store/i, 'Shopping'],
+];
+
+export function categoryFromBank(text: string): Category | null {
+  for (const [re, cat] of BANK_CATEGORY) if (re.test(text)) return cat;
+  return null;
 }
 
 /** Call when the user changes a transaction's category — future ones from that merchant follow it. */
