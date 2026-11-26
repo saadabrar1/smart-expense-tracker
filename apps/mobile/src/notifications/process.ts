@@ -46,7 +46,7 @@ export type CaptureOutcome =
   | { kind: 'transaction'; id: string; tx: CategorizedTransaction }
   | { kind: 'gmail-trigger'; id: string }
   | { kind: 'skipped'; id: string; reason: 'personal-sms' | 'redacted' | 'otp' | 'promo' | 'not-financial' }
-  | { kind: 'unparsed'; id: string; packageName: string; title: string | null };
+  | { kind: 'unparsed'; id: string; packageName: string; sender: string; title: string | null; text: string; receivedAt: number };
 
 export function toRawMessage(n: CapturedNotification) {
   const isSms = SMS_APPS.has(n.packageName);
@@ -68,9 +68,15 @@ export function processCaptured(n: CapturedNotification, opts: ProcessOptions = 
     return { kind: 'skipped', id: n.id, reason: 'personal-sms' };
   }
   if (n.packageName === GMAIL_APP && opts.gmailConnected) return { kind: 'gmail-trigger', id: n.id };
-  const r = parseMessage(toRawMessage(n), opts.templates ?? []);
+  const raw = toRawMessage(n);
+  const r = parseMessage(raw, opts.templates ?? []);
   if (r.kind === 'transaction') return { kind: 'transaction', id: n.id, tx: categorize(r.tx, opts.userRules) };
-  if (r.reason === 'failed') return { kind: 'unparsed', id: n.id, packageName: n.packageName, title: n.title };
+  if (r.reason === 'failed') {
+    return {
+      kind: 'unparsed', id: n.id, packageName: n.packageName, sender: raw.sender,
+      title: n.title, text: raw.body, receivedAt: raw.receivedAt.getTime(),
+    };
+  }
   return { kind: 'skipped', id: n.id, reason: r.reason };
 }
 

@@ -22,7 +22,8 @@ export function drainNotifications(): Promise<DrainResult> {
     const pending = NotificationCapture.getPending();
     if (!pending.length) return { added: 0, unparsed: 0, gmailSynced: false };
 
-    const batch = processBatch(pending, { gmailConnected: isGmailConnected() });
+    const userRules = await store.loadUserRules();
+    const batch = processBatch(pending, { gmailConnected: isGmailConnected(), userRules });
     const transactions = [...batch.transactions];
     const unparsed = [...batch.unparsed];
 
@@ -33,7 +34,7 @@ export function drainNotifications(): Promise<DrainResult> {
         await runGmailSync(1);
         gmailSynced = true;
       } catch {
-        const fallback = processBatch(batch.gmailTriggers, { gmailConnected: false });
+        const fallback = processBatch(batch.gmailTriggers, { gmailConnected: false, userRules });
         transactions.push(...fallback.transactions);
         unparsed.push(...fallback.unparsed);
       }
@@ -41,10 +42,10 @@ export function drainNotifications(): Promise<DrainResult> {
 
     const added = await store.updateTransactions(prev => mergeTransactions(prev, transactions));
     if (unparsed.length) {
-      await store.saveUnparsed([
-        ...(await store.loadUnparsed()),
-        ...unparsed.map(u => ({ id: u.id, source: 'notification' as const, from: u.packageName, subject: u.title, reason: 'failed' })),
-      ]);
+      await store.addUnparsed(unparsed.map(u => ({
+        id: u.id, source: 'notification' as const, from: u.sender, subject: u.title,
+        text: u.text, receivedAt: u.receivedAt, reason: 'failed',
+      })));
     }
     NotificationCapture.ack(batch.ackIds);
     return { added, unparsed: unparsed.length, gmailSynced };

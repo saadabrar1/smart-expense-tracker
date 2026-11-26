@@ -51,6 +51,8 @@ test('unparseable money-looking alert is reported for review, everything is acke
   const r = processBatch(items);
   assert.equal(r.transactions.length, 1);
   assert.equal(r.unparsed.length, 1);
+  assert.equal(r.unparsed[0].sender, 'BANKX');
+  assert.match(r.unparsed[0].text, /Rs. 99 something unusual/);
   assert.deepEqual(r.ackIds, items.map(i => i.id));
 });
 

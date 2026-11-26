@@ -23,11 +23,12 @@ export function runGmailSync(maxPasses = 3): Promise<RunSummary> {
     const gmail = createGmailClient(getAccessToken, invalidateToken);
     const summary: RunSummary = { added: 0, scanned: 0, unparsed: 0, more: false };
     let state = await store.loadSyncState();
+    const userRules = await store.loadUserRules();
 
     for (let pass = 0; pass < maxPasses; pass++) {
-      const r = await syncGmail({ gmail, state });
+      const r = await syncGmail({ gmail, state, userRules });
       const added = await store.updateTransactions(prev => mergeTransactions(prev, r.transactions));
-      if (r.unparsed.length) await store.saveUnparsed([...(await store.loadUnparsed()), ...r.unparsed]);
+      if (r.unparsed.length) await store.addUnparsed(r.unparsed);
       await store.saveSyncState(r.nextState);
 
       summary.added += added;

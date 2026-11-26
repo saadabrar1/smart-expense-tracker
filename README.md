@@ -32,3 +32,11 @@ Notification capture (what it reads, filters, testing): [apps/mobile/NOTIFICATIO
 - Test fixtures are currently **synthetic**. Real bank formats must come from collected samples, not guesses.
 - Messages with low `confidence` or `ignored: failed` should go to an LLM fallback (planned). Turn each result into a new `Template`.
 - When a user corrects a category, call `learnRule` (it becomes a user rule for that merchant).
+
+## "Help us support this bank"
+Alerts that look financial but can't be parsed are kept **on the phone only** and listed behind a banner ("N alerts we couldn't read"). For each one the user can:
+1. **Add it themselves:** amount (prefilled when possible), money in/out, merchant, category. The merchant→category choice is remembered for future alerts.
+2. **Share an anonymised copy:** account/card numbers reduced to the last 4 digits; phone numbers, emails, CNIC, IBAN and "Dear <name>" removed. The user edits the result, and it opens as a **draft in their own email app** to `EXPO_PUBLIC_SAMPLES_EMAIL` (see `apps/mobile/.env.example`). Nothing is sent unless they press Send.
+3. **Not a transaction:** remove it.
+
+Why an email draft rather than an upload: the app itself never sends Gmail-derived text to a server, which keeps the on-device Gmail model (no CASA trigger) and gives explicit per-item consent under Google's Limited Use rules. An in-app upload can be added for SMS samples once `services/api` exists.

@@ -1,7 +1,8 @@
 import './src/background'; // defines the background task at module scope
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ReviewScreen } from './src/review/ReviewScreen';
 import { computeInsight, describeWarning } from '@smart-expense/engine';
 import { connectGmail, disconnectGmail, restoreGmail } from './src/gmail/auth';
 import { enableBackgroundSync, disableBackgroundSync } from './src/background';
@@ -20,7 +21,14 @@ export default function App() {
   const [status, setStatus] = useState<string>('');
   const [notifAccess, setNotifAccess] = useState(false);
 
-  const reload = useCallback(async () => setTxs(await store.loadTransactions()), []);
+  const [unparsedCount, setUnparsedCount] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  const reload = useCallback(async () => {
+    const [t, u] = await Promise.all([store.loadTransactions(), store.loadUnparsed()]);
+    setTxs(t);
+    setUnparsedCount(u.length);
+  }, []);
 
   // Notification capture: re-check access whenever the app returns from Settings,
   // drain alerts captured while the app was closed, and process new ones live.
@@ -31,7 +39,7 @@ export default function App() {
     if (granted) {
       await enableBackgroundSync();
       const r = await drainNotifications();
-      if (r.added) await reload();
+      if (r.added || r.unparsed || r.gmailSynced) await reload();
     }
   }, [reload]);
 
@@ -139,6 +147,17 @@ export default function App() {
       )}
       {notifAccess && <Text style={styles.muted}>✓ Capturing bank SMS & wallet alerts</Text>}
 
+      {unparsedCount > 0 && (
+        <Pressable onPress={() => setReviewOpen(true)} style={styles.banner}>
+          <Text style={styles.bannerText}>
+            {unparsedCount} alert{unparsedCount === 1 ? '' : 's'} we couldn't read: tap to review
+          </Text>
+        </Pressable>
+      )}
+      <Modal visible={reviewOpen} animationType="slide" onRequestClose={() => setReviewOpen(false)}>
+        <ReviewScreen onClose={() => setReviewOpen(false)} onChanged={reload} />
+      </Modal>
+
       {busy && <ActivityIndicator style={{ marginVertical: 8 }} />}
       {!!status && <Text style={styles.status}>{status}</Text>}
 
@@ -185,6 +204,8 @@ const styles = StyleSheet.create({
   bold: { fontWeight: '700' },
   status: { color: '#444', marginBottom: 8 },
   warn: { color: '#b45309', marginTop: 4 },
+  banner: { backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, marginBottom: 12 },
+  bannerText: { color: '#92400e', fontWeight: '600' },
   btn: { backgroundColor: '#111', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 6 },
   btnSmall: { backgroundColor: '#111', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
   btnGhost: { backgroundColor: '#eee' },

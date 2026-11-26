@@ -98,6 +98,8 @@ test('first sync: backfill, parse, categorise, skip OTP, report unparsed, dedupe
   assert.equal(debit.source, 'email');
   assert.equal(credit.category, 'Income');
   assert.deepEqual(r.unparsed.map(u => u.id), ['m4']);
+  assert.match(r.unparsed[0].text, /Rs. 99 something unusual/, 'text kept on device for the review screen');
+  assert.equal(r.unparsed[0].receivedAt, Date.parse('2026-11-23T04:00:00Z'));
   assert.equal(r.nextState.lastSyncMs, now.getTime());
   assert.equal(r.nextState.seenIds.length, 5);
 });

@@ -34,11 +34,19 @@ export interface SyncOptions {
   senders?: string[];
 }
 
+/**
+ * An alert that looked financial but couldn't be parsed. Kept ON THE DEVICE ONLY so the user
+ * can review it ("Help us support this bank"): fix it manually or choose to share an
+ * anonymised copy. Deleted once resolved.
+ */
 export interface UnparsedAlert {
   id: string;
   source: 'email' | 'notification';
+  /** Email from-address, SMS sender id, or app package */
   from: string;
   subject: string | null;
+  text: string;
+  receivedAt: number;
   reason: string;
 }
 
@@ -120,7 +128,10 @@ export async function syncGmail(opts: SyncOptions): Promise<SyncResult> {
       keys.add(key);
       transactions.push(categorize(r.tx, opts.userRules));
     } else if (r.reason === 'failed') {
-      unparsed.push({ id: m.id, source: 'email', from: raw.sender, subject: raw.subject, reason: r.reason });
+      unparsed.push({
+        id: m.id, source: 'email', from: raw.sender, subject: raw.subject,
+        text: raw.body, receivedAt: raw.receivedAt.getTime(), reason: r.reason,
+      });
     }
   }
 
