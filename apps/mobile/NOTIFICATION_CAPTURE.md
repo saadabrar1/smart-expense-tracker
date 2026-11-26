@@ -8,6 +8,18 @@ Android only. A local Expo module, `modules/notification-capture`, registers a `
 - Alerts already in the notification shade when access is first granted.
 - Works while the app is closed: the service queues alerts on the device, and the app drains the queue on open, live while open, and in the 15-min background task.
 
+## Gmail app notifications
+A bank email also posts a Gmail-app notification (`com.google.android.gm`): title = sender name, text = subject + a short preview (not the full email).
+| Gmail API connected? | What happens |
+|---|---|
+| Yes | The notification **triggers an immediate Gmail sync**: the full email is parsed within seconds instead of waiting for the 15-min background run. The preview itself isn't parsed. |
+| Yes, but the sync fails (expired token, offline, access revoked) | Fall back to parsing the preview |
+| No | Parse the preview. It works when the amount is in the subject or the first lines |
+
+Gmail usually notifies only for **Primary**, and bank alerts often land in **Updates**. To capture them, the user turns on notifications for the Updates label (Gmail app → Settings → account → Manage labels → Updates → Label notifications).
+
+Duplicates: the same purchase from SMS, wallet app, Gmail API and Gmail preview is stored **once**. Matching rule: same direction and amount within 10 minutes, with no conflicting account number; the richer copy is kept. Trade-off: two identical payments on the same account within 10 minutes count as one.
+
 ## Filters (privacy)
 | Where | Rule |
 |---|---|

@@ -67,3 +67,43 @@ test('same purchase via SMS notification and Gmail is stored once', async () => 
   const stored = mergeTransactions(mergeTransactions([], sms.transactions), fromEmail.transactions);
   assert.equal(stored.length, 1);
 });
+
+// ---- Gmail app notifications ----
+const GMAIL = 'com.google.android.gm';
+const gmailNotif = (preview: string, whenMs = at) =>
+  notif(GMAIL, 'Bank Alerts', `Transaction Alert\n${preview}`, whenMs);
+
+test('Gmail notification with Gmail connected → trigger a sync, do not parse the preview', () => {
+  const n = gmailNotif('PKR 2,000 spent at KFC on card ending 1234.');
+  const r = processBatch([n], { gmailConnected: true });
+  assert.equal(r.transactions.length, 0);
+  assert.deepEqual(r.gmailTriggers.map(t => t.id), [n.id]);
+  assert.deepEqual(r.ackIds, [n.id]);
+});
+
+test('Gmail notification without Gmail connected → parse the preview (sender = display name)', () => {
+  const n = gmailNotif('Dear customer, PKR 2,000 spent at KFC.');
+  assert.equal(toRawMessage(n).sender, 'Bank Alerts');
+  assert.equal(toRawMessage(n).body, 'Transaction Alert\nDear customer, PKR 2,000 spent at KFC.');
+  const r = processBatch([n], { gmailConnected: false });
+  assert.equal(r.gmailTriggers.length, 0);
+  assert.equal(r.transactions.length, 1);
+  assert.equal(r.transactions[0].amount, 2000);
+  assert.equal(r.transactions[0].category, 'Food & Dining');
+});
+
+test('preview without account number still dedupes against the full email / SMS with one', () => {
+  const sms = processBatch([notif(SMS, 'BANKX', 'PKR 2,000 spent at KFC on card ending 1234.', at)]).transactions;
+  const preview = processBatch([gmailNotif('PKR 2,000 spent at KFC.', at + 4 * 60_000)]).transactions;
+  assert.equal(preview[0].accountHint, null);
+  const stored = mergeTransactions(mergeTransactions([], preview), sms);
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].accountHint, '1234', 'keeps the richer copy');
+});
+
+test('different accounts or > 10 minutes apart stay separate', () => {
+  const a = processBatch([notif(SMS, 'BANKX', 'PKR 500 debited from A/C xx1111 at KFC.', at)]).transactions;
+  const b = processBatch([notif(SMS, 'BANKX', 'PKR 500 debited from A/C xx2222 at KFC.', at + 60_000)]).transactions;
+  const c = processBatch([notif(SMS, 'BANKX', 'PKR 500 debited from A/C xx1111 at KFC.', at + 30 * 60_000)]).transactions;
+  assert.equal(mergeTransactions([], [...a, ...b, ...c]).length, 3);
+});

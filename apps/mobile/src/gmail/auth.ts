@@ -59,6 +59,12 @@ export async function restoreGmail(): Promise<string | null> {
   return res.data.scopes.includes(GMAIL_READONLY) ? res.data.user.email : null;
 }
 
+/** Cheap synchronous check (no network): has the user connected Gmail on this device? */
+export function isGmailConnected(): boolean {
+  ensureConfigured();
+  return GoogleSignin.hasPreviousSignIn();
+}
+
 /** Fresh access token (the library refreshes it when expired). */
 export async function getAccessToken(): Promise<string> {
   ensureConfigured();

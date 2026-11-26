@@ -26,13 +26,11 @@ export function runGmailSync(maxPasses = 3): Promise<RunSummary> {
 
     for (let pass = 0; pass < maxPasses; pass++) {
       const r = await syncGmail({ gmail, state });
-      const before = await store.loadTransactions();
-      const merged = mergeTransactions(before, r.transactions);
-      await store.saveTransactions(merged);
+      const added = await store.updateTransactions(prev => mergeTransactions(prev, r.transactions));
       if (r.unparsed.length) await store.saveUnparsed([...(await store.loadUnparsed()), ...r.unparsed]);
       await store.saveSyncState(r.nextState);
 
-      summary.added += merged.length - before.length;
+      summary.added += added;
       summary.scanned += r.scanned;
       summary.unparsed += r.unparsed.length;
       summary.more = r.truncated;

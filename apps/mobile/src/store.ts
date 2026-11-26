@@ -22,9 +22,23 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
+// Gmail sync and notification draining can run at the same time (background task);
+// serialise read-modify-write so one never overwrites the other's new transactions.
+let txChain: Promise<unknown> = Promise.resolve();
+
 export const store = {
   loadTransactions: () => readJson<StoredTransaction[]>(K.tx, []),
-  saveTransactions: (t: StoredTransaction[]) => AsyncStorage.setItem(K.tx, JSON.stringify(t)),
+  /** Atomic (within this JS runtime) update. Returns how many transactions were added. */
+  updateTransactions(fn: (prev: StoredTransaction[]) => StoredTransaction[]): Promise<number> {
+    const run = txChain.then(async () => {
+      const prev = await readJson<StoredTransaction[]>(K.tx, []);
+      const next = fn(prev);
+      await AsyncStorage.setItem(K.tx, JSON.stringify(next));
+      return next.length - prev.length;
+    });
+    txChain = run.catch(() => undefined);
+    return run;
+  },
   loadSyncState: () => readJson<SyncState>(K.sync, EMPTY_STATE),
   saveSyncState: (s: SyncState) => AsyncStorage.setItem(K.sync, JSON.stringify(s)),
   loadUnparsed: () => readJson<UnparsedAlert[]>(K.unparsed, []),
