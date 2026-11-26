@@ -8,5 +8,8 @@
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "react": "19.3.0"
   }
 }

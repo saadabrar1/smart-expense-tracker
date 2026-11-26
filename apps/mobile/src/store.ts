@@ -14,6 +14,23 @@ const K = {
   sync: 'set:gmail-sync:v1',
   unparsed: 'set:unparsed:v2',
   rules: 'set:user-rules:v1',
+  settings: 'set:settings:v1',
+};
+
+export interface Settings {
+  /** Manual balance; null = use the latest balance seen in an alert */
+  balance: number | null;
+  /** Day of month salary arrives (1–31); null = unknown */
+  paydayDay: number | null;
+  warnings: { runout: boolean; pace: boolean; jump: boolean; daily: boolean };
+  onboarded: boolean;
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  balance: null,
+  paydayDay: null,
+  warnings: { runout: true, pace: true, jump: true, daily: false },
+  onboarded: false,
 };
 
 const MAX_UNPARSED = 200;
@@ -63,6 +80,16 @@ export const store = {
     }),
   removeUnparsed: (id: string) =>
     update<UnparsedAlert[], void>(K.unparsed, [], prev => ({ next: prev.filter(p => p.id !== id), result: undefined })),
+
+  loadSettings: async (): Promise<Settings> => ({ ...DEFAULT_SETTINGS, ...(await readJson<Partial<Settings>>(K.settings, {})) }),
+  updateSettings: (patch: Partial<Settings>) =>
+    update<Partial<Settings>, Settings>(K.settings, {}, prev => {
+      const next = { ...DEFAULT_SETTINGS, ...prev, ...patch };
+      return { next, result: next };
+    }),
+
+  /** Wipes everything this app stored on the phone. */
+  clearAll: () => AsyncStorage.multiRemove(Object.values(K)),
 
   /** Merchant (normalised) → category, learned from the user's corrections. */
   loadUserRules: async (): Promise<UserRules> => new Map(await readJson<[string, Category][]>(K.rules, [])),
