@@ -35,7 +35,8 @@ export interface SyncOptions {
 }
 
 export interface UnparsedAlert {
-  gmailId: string;
+  id: string;
+  source: 'email' | 'notification';
   from: string;
   subject: string | null;
   reason: string;
@@ -119,7 +120,7 @@ export async function syncGmail(opts: SyncOptions): Promise<SyncResult> {
       keys.add(key);
       transactions.push(categorize(r.tx, opts.userRules));
     } else if (r.reason === 'failed') {
-      unparsed.push({ gmailId: m.id, from: raw.sender, subject: raw.subject, reason: r.reason });
+      unparsed.push({ id: m.id, source: 'email', from: raw.sender, subject: raw.subject, reason: r.reason });
     }
   }
 

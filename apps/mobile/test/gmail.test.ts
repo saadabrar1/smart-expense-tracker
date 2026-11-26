@@ -97,7 +97,7 @@ test('first sync: backfill, parse, categorise, skip OTP, report unparsed, dedupe
   assert.equal(debit.category, 'Clothing');
   assert.equal(debit.source, 'email');
   assert.equal(credit.category, 'Income');
-  assert.deepEqual(r.unparsed.map(u => u.gmailId), ['m4']);
+  assert.deepEqual(r.unparsed.map(u => u.id), ['m4']);
   assert.equal(r.nextState.lastSyncMs, now.getTime());
   assert.equal(r.nextState.seenIds.length, 5);
 });

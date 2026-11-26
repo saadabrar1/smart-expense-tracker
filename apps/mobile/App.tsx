@@ -1,11 +1,13 @@
 import './src/background'; // defines the background task at module scope
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { computeInsight, describeWarning } from '@smart-expense/engine';
 import { connectGmail, disconnectGmail, restoreGmail } from './src/gmail/auth';
 import { enableBackgroundSync, disableBackgroundSync } from './src/background';
 import { runGmailSync } from './src/syncRunner';
+import { NotificationCapture } from './modules/notification-capture';
+import { drainNotifications } from './src/notifications/runner';
 import { store } from './src/store';
 import { fromStored, type StoredTransaction } from './src/transactions';
 
@@ -16,8 +18,36 @@ export default function App() {
   const [txs, setTxs] = useState<StoredTransaction[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>('');
+  const [notifAccess, setNotifAccess] = useState(false);
 
   const reload = useCallback(async () => setTxs(await store.loadTransactions()), []);
+
+  // Notification capture: re-check access whenever the app returns from Settings,
+  // drain alerts captured while the app was closed, and process new ones live.
+  const refreshNotifications = useCallback(async () => {
+    if (!NotificationCapture.isAvailable) return;
+    const granted = NotificationCapture.isPermissionGranted();
+    setNotifAccess(granted);
+    if (granted) {
+      await enableBackgroundSync();
+      const r = await drainNotifications();
+      if (r.added) await reload();
+    }
+  }, [reload]);
+
+  useEffect(() => {
+    refreshNotifications();
+    const appState = AppState.addEventListener('change', s => {
+      if (s === 'active') refreshNotifications();
+    });
+    const captured = NotificationCapture.addCapturedListener(() => {
+      refreshNotifications();
+    });
+    return () => {
+      appState.remove();
+      captured.remove();
+    };
+  }, [refreshNotifications]);
 
   const sync = useCallback(async () => {
     setBusy(true);
@@ -60,7 +90,8 @@ export default function App() {
   };
 
   const onDisconnect = async () => {
-    await disableBackgroundSync();
+    // The background task also drains notifications; keep it if that's still on.
+    if (!NotificationCapture.isPermissionGranted()) await disableBackgroundSync();
     await disconnectGmail().catch(() => undefined);
     await store.clearGmail();
     setEmail(null);
@@ -92,6 +123,21 @@ export default function App() {
           <Pressable onPress={onConnect} style={styles.btn}><Text style={styles.btnText}>Connect Gmail</Text></Pressable>
         </View>
       )}
+
+      {NotificationCapture.isAvailable && !notifAccess && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Read bank SMS & wallet alerts</Text>
+          <Text style={styles.muted}>
+            Turn on Notification access so we can log bank SMS and JazzCash, Easypaisa and bank-app alerts
+            as they arrive. Only messages with an amount are kept; chats and personal SMS are ignored.
+            Everything stays on this phone.
+          </Text>
+          <Pressable onPress={() => NotificationCapture.openPermissionSettings()} style={styles.btn}>
+            <Text style={styles.btnText}>Allow notification access</Text>
+          </Pressable>
+        </View>
+      )}
+      {notifAccess && <Text style={styles.muted}>✓ Capturing bank SMS & wallet alerts</Text>}
 
       {busy && <ActivityIndicator style={{ marginVertical: 8 }} />}
       {!!status && <Text style={styles.status}>{status}</Text>}

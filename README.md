@@ -6,7 +6,8 @@ Reads bank and wallet alerts (Android notifications and forwarded emails), sorts
 ## Layout
 ```
 packages/engine   parser → categoriser → forecast (pure TypeScript, no deps; Node ≥ 23.6)
-apps/mobile       Expo / React Native app: Gmail on-device sync (done), notification capture (next)
+apps/mobile       Expo / React Native app: Gmail on-device sync + Android notification capture
+                  (bank SMS & wallet alerts; native module in apps/mobile/modules/notification-capture)
 apps/web          (after gates pass) Next.js dashboard
 services/api      (after gates pass) API + inbound-email webhook
 ```
@@ -17,6 +18,7 @@ npm test                         # engine + mobile tests
 cd apps/mobile && npx tsc --noEmit
 ```
 Gmail connection setup (Google Cloud, SHA-1, development build): [apps/mobile/GMAIL_SETUP.md](apps/mobile/GMAIL_SETUP.md)
+Notification capture (what it reads, filters, testing): [apps/mobile/NOTIFICATION_CAPTURE.md](apps/mobile/NOTIFICATION_CAPTURE.md)
 
 ## Phase 0: check these gates before building more
 - [ ] **G1 Gmail:** submit OAuth verification (gmail.readonly); get a CASA Tier 2 quote from TAC Security; ask Google in writing whether reading Gmail on-device only is exempt from CASA. *Fallback: email forwarding only.*
